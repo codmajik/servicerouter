@@ -2,27 +2,27 @@ package main
 
 import (
 	"fmt"
-	"github.com/codmajik/simplerouter"
+	sr "github.com/codmajik/servicerouter"
 	"net/http"
 )
 
-func handleAnyOtherRequest(ctx *simplerouter.RoutedContext) (interface{}, error) {
+func handleAnyOtherRequest(ctx *sr.RoutedContext) (interface{}, error) {
 	return fmt.Sprintf("don't think you want '%s'", ctx.Path), nil
 }
-func handleTwoStory(ctx *simplerouter.RoutedContext) (interface{}, error) {
+func handleTwoStory(ctx *sr.RoutedContext) (interface{}, error) {
 	return "TWO_STORY_BUILDING", nil
 }
 
-func handleOneStory(ctx *simplerouter.RoutedContext) (interface{}, error) {
+func handleOneStory(ctx *sr.RoutedContext) (interface{}, error) {
 	return "ONE_STORY_BUILDING", nil
 }
 
-func handleNoBuilding(ctx *simplerouter.RoutedContext) (interface{}, error) {
+func handleNoBuilding(ctx *sr.RoutedContext) (interface{}, error) {
 	return "LIST_ALL_BUILDING", nil
 }
 
 func main() {
-	router := simplerouter.NewRouter()
+	router := sr.NewRouter()
 
 	router.SimpleRoute("building").HandlerFunc(handleNoBuilding)
 	router.SimpleRoute("building.onestory").HandlerFunc(handleOneStory)
@@ -33,7 +33,7 @@ func main() {
 
 	http.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
 		qpath := req.URL.Query().Get("q")
-		result, err := router.ExecPath(qpath)
+		result, err := router.ExecPath(qpath, req)
 		if err != nil {
 			rw.Write([]byte("Path Not Found: " + err.Error()))
 			return
