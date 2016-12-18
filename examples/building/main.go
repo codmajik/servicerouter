@@ -3,21 +3,30 @@ package main
 import (
 	"fmt"
 	sr "github.com/codmajik/servicerouter"
+	"golang.org/x/net/context"
 	"net/http"
+	"strings"
 )
 
-func handleAnyOtherRequest(ctx *sr.RoutedContext) (interface{}, error) {
-	return fmt.Sprintf("don't think you want '%s'", ctx.Path), nil
+func handleAnyOtherRequest(ctx context.Context, req interface{}) (interface{}, error) {
+	qvals := ""
+
+	r, ok := req.(*http.Request)
+	if ok {
+		qvals = r.URL.RawQuery
+	}
+	return fmt.Sprintf("you want '%s'? => with params %s", ctx.Value(sr.PathKey), qvals), nil
 }
-func handleTwoStory(ctx *sr.RoutedContext) (interface{}, error) {
+
+func handleTwoStory(ctx context.Context, req interface{}) (interface{}, error) {
 	return "TWO_STORY_BUILDING", nil
 }
 
-func handleOneStory(ctx *sr.RoutedContext) (interface{}, error) {
+func handleOneStory(ctx context.Context, req interface{}) (interface{}, error) {
 	return "ONE_STORY_BUILDING", nil
 }
 
-func handleNoBuilding(ctx *sr.RoutedContext) (interface{}, error) {
+func handleNoBuilding(ctx context.Context, req interface{}) (interface{}, error) {
 	return "LIST_ALL_BUILDING", nil
 }
 
@@ -32,7 +41,14 @@ func main() {
 	route.SimpleSubRoute("twostory").HandlerFunc(handleTwoStory)
 
 	http.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
+
 		qpath := req.URL.Query().Get("q")
+		if qpath == "" {
+			qpath = strings.Trim(req.URL.Path, "/?")
+			qpath = strings.Replace(qpath, "/", ".", -1)
+		}
+
+		fmt.Println("[REQUEST]", qpath)
 		result, err := router.ExecPath(qpath, req)
 		if err != nil {
 			rw.Write([]byte("Path Not Found: " + err.Error()))
