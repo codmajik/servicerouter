@@ -8,12 +8,17 @@ import (
 	"sync"
 )
 
+const (
+	//PathKey Context value key for provided path
+	PathKey = "servicerouter.Path:Key"
+)
+
 type routeMatcher interface {
 	match(string) (string, bool)
 }
 
 // ErrRouteNotFound route was not found
-var ErrRouteNotFound = errors.New("No Route Found")
+var ErrRouteNotFound = errors.New("Route Not Found")
 
 // Route holds a match
 type Route struct {
@@ -24,16 +29,9 @@ type Route struct {
 	h       RouteHandler
 }
 
-// RoutedContext holds context
-type RoutedContext struct {
-	context.Context
-	Route *Route
-	Path  string
-}
-
 // RouteHandler callback on matched route
 type RouteHandler interface {
-	Handle(*RoutedContext) (interface{}, error)
+	Handle(context.Context, interface{}) (interface{}, error)
 }
 
 // Router : Service Router
@@ -43,12 +41,12 @@ type Router struct {
 }
 
 // RouteHandlerFunc simplified Handler interface
-type RouteHandlerFunc func(*RoutedContext) (interface{}, error)
+type RouteHandlerFunc func(context.Context, interface{}) (interface{}, error)
 
 // Handle implementation of RoutedHandler
-func (f RouteHandlerFunc) Handle(rc *RoutedContext) (interface{}, error) {
-	r, e := f(rc)
-	return r, e
+func (f RouteHandlerFunc) Handle(ctx context.Context, req interface{}) (r interface{}, e error) {
+	r, e = f(ctx, req)
+	return
 }
 
 // NewRouter Create new router
@@ -59,25 +57,24 @@ func NewRouter() *Router {
 }
 
 // ExecPath route the specified path
-func (r *Router) ExecPath(path string) (interface{}, error) {
-	return r.Exec(path, context.Background())
+func (r *Router) ExecPath(path string, req interface{}) (interface{}, error) {
+	return r.Exec(context.Background(), path, req)
 }
 
 // Exec execute routing
-func (r *Router) Exec(path string, ctx context.Context) (interface{}, error) {
+func (r *Router) Exec(ctx context.Context, path string, req interface{}) (interface{}, error) {
 	r.rw.RLock()
 	defer r.rw.RUnlock()
 
 	for _, route := range r.routes {
 		matched, isrouted := route.matchRoute(path)
 		if isrouted {
-			rctx := &RoutedContext{
-				Context: ctx,
-				Path:    path,
-				Route:   matched,
+
+			if ctx != nil {
+				ctx = context.WithValue(ctx, PathKey, path)
 			}
 
-			rz, err := matched.h.Handle(rctx)
+			rz, err := matched.h.Handle(ctx, req)
 			return rz, err
 		}
 	}
@@ -216,14 +213,12 @@ func (f routeMatcherFunc) match(p string) (string, bool) {
 func simplePrefixMatcher(prefix string) routeMatcherFunc {
 	return func(path string) (string, bool) {
 		nprefix := strings.TrimPrefix(path, prefix)
-		println(nprefix, "=", prefix, path)
 		return nprefix, path != nprefix
 	}
 }
 
 func simpleMatcher(patten string) routeMatcherFunc {
 	return func(path string) (string, bool) {
-		println(patten, "=", path)
 		return "", patten == path
 	}
 }

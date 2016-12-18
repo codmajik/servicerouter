@@ -3,6 +3,8 @@ package servicerouter
 import (
 	"regexp"
 	"testing"
+
+	"golang.org/x/net/context"
 )
 
 type testCase struct {
@@ -12,7 +14,7 @@ type testCase struct {
 }
 
 func (r *testCase) test(t *testing.T, router *Router) {
-	rvalue, err := router.ExecPath(r.path)
+	rvalue, err := router.ExecPath(r.path, nil)
 
 	if r.err != err {
 		t.Error("expected error", r.err, "got", err)
@@ -35,7 +37,7 @@ type routeTestCase struct {
 	tcase     *testCase
 }
 
-func (r *routeTestCase) hFunc(ctx *RoutedContext) (interface{}, error) {
+func (r *routeTestCase) hFunc(ctx context.Context, req interface{}) (interface{}, error) {
 	return r.tcase.result, r.tcase.err
 }
 
@@ -57,7 +59,7 @@ func (r *routeTestCase) test(t *testing.T) {
 
 		router.RegExpRoute(re).HandlerFunc(r.hFunc)
 	default:
-		t.Error("invalid test case --- unsupported match type ", r.matchType)
+		t.Fatal("invalid test case --- unsupported match type ", r.matchType)
 		t.FailNow()
 		return
 	}
@@ -169,6 +171,6 @@ func TestRegExpRoute(t *testing.T) {
 	}
 }
 
-func TextNestedRoutes(t *testing.T) {
-	// TODO: Implement this tests
+func TestNestedRoutes(t *testing.T) {
+
 }
