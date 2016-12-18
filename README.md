@@ -40,92 +40,94 @@ go get github.com/codmajik/servicerouter
 
 ##### sample app
 ```golang
-
 package main
 
 import (
-  "fmt"
-  "net/http"
-  "strings"
-  "github.com/codmajik/servicerouter"
-  
+	"fmt"
+	sr "github.com/codmajik/servicerouter"
+	"golang.org/x/net/context"
+	"net/http"
+	"strings"
 )
 
+func main() {
 
-function main() {
+	// NOTE: The routing scheme used here is arbitrary
+	router := sr.NewRouter()
 
-  // NOTE: The routing scheme used here is arbitrary
-  router := servicerouter.NewRouter()
-  
-  router.SimpleRoute("home").
-    HandlerFunc(func(ctx *servicerouter.RoutedContext) (interface{}, error) {
-      return "HOME_CONTENT", nil
-    })
-    
-  // use prefix to do subrouting
-  subroute := router.PrefixRoute("users.").
-    HandlerFunc(func(ctx *servicerouter.RoutedContext) (interface{}, error) {
-      return "USERS_INVALID_OPERATION", nil
-    })
-    
-    
-  // the following routes are sub of users, so  users. would have to match first
-  
-  // users.list --> fetch all users
-  subroute.SimpleSubRoute("list").
-    HandlerFunc(func(ctx *servicerouter.RoutedContext) (interface{}, error) {
-      return "LIST_OF_USERS", nil
-    })
-  
-  //users.list //
-   subroute.PrefixSubRoute("list.groups/").
-      HandlerFunc(func(ctx *servicerouter.RoutedContext) (interface{}, error) {
-        return "LIST_OF_USERS_BY_GROUP", nil
-      }).
-      SimpleSubRoute("admin"). // you can even subroute on a subroute - META ZEN
-        HandlerFunc(func(ctx *servicerouter.RoutedContext) (interface{}, error) {
-          return "LIST_OF_ADMIN_USERS", nil
-        }).
-  
-  // users.save
-  subroute.SimpleSubRoute("save").
-      HandlerFunc(func(ctx *servicerouter.RoutedContext) (interface{}, error) {
-        params := ctx.Context.Value("params").(map[string]string)
-        fmt.Println("save to db", params)
-        return "HOUSTON_ALL_IS_WELL", nil
-      })
-      
-      
-   
-   
-   http.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
-      qpath := req.URL.Query().Get("action")
-      if (qpath == "") {
-        qpath = strings.Replace(req.RequestURI, "/", ".", 1)
-      }
-      
-      // if you have parameters to pass call with a
-      // ctx := context.WithValue(req.Context(), SOME_KEY, params) 
-      //result, err := router.Exec(qpath, ctx)
-      result, err := router.ExecPath(qpath)
-      if err != nil {
-        rw.Write([]byte("Path Not Found: " + err.Error()))
-        return
-      }
+	router.SimpleRoute("home").
+		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return "HOME_CONTENT", nil
+		})
 
-      rw.Write([]byte(result.(string)))
-    })
+	// use prefix to do subrouting
+	subroute := router.PrefixRoute("users.").
+		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return "USERS_INVALID_OPERATION", nil
+		})
+
+	// the following routes are sub of users, so  users. would have to match first
+
+	// users.list --> fetch all users
+	subroute.SimpleSubRoute("list").
+		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return "LIST_OF_USERS", nil
+		})
+
+		//users.list //
+	subroute.PrefixSubRoute("list.groups/").
+		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return "LIST_OF_USERS_BY_GROUP", nil
+		}).
+		SimpleSubRoute("admin"). // you can even subroute on a subroute - META ZEN
+		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return "LIST_OF_ADMIN_USERS", nil
+		})
+
+	// users.save
+	subroute.SimpleSubRoute("save").
+		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+			params := req.(map[string]string)
+			fmt.Println("save to db", params)
+			return "HOUSTON_ALL_IS_WELL", nil
+		})
+
+	http.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
+
+		qpath = strings.Replace(req.RequestURI, "/", ".", -1)
+
+		// result, err := router.Exec(req.Context(), qpath, nil)
+		result, err := router.ExecPath(qpath, nil)
+		if err != nil {
+			rw.Write([]byte("Path Not Found: " + err.Error()))
+			return
+		}
+
+		if result != nil {
+			rw.Write([]byte(result.(string)))
+		}
+	})
 
 	fmt.Println("Listening for http request on :8080")
 	fmt.Println(http.ListenAndServe(":8080", nil))
 }
+
+
 ```
+#### Notes
+* SimpleRoute: don't add sub routes to simple routes, sub routes are only matched after the base match
+* RouteHandlerFunc: match gokit's endpoint.Endpoint and can be composed
+
+
+#### Inspired by
+- [GoKit](http://gokit.io)
+- [Gorrila Mux](http://www.gorillatoolkit.org/pkg/mux)
+
 
 #### Todo
 - [ ] More documentation
 - [ ] More examples
 - [ ] Maybe a tutorial
-
 
 
 #### License
