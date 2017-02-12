@@ -32,9 +32,10 @@ const (
 )
 
 type routeTestCase struct {
-	matchType string
-	route     string
-	tcase     *testCase
+	matchType  string
+	route      string
+	tcase      *testCase
+	rootPrefix string
 }
 
 func (r *routeTestCase) hFunc(ctx context.Context, req interface{}) (interface{}, error) {
@@ -43,6 +44,7 @@ func (r *routeTestCase) hFunc(ctx context.Context, req interface{}) (interface{}
 
 func (r *routeTestCase) test(t *testing.T) {
 	router := NewRouter()
+	router.SetRootPrefix(r.rootPrefix)
 
 	switch r.matchType {
 	case MatchTypeSimple:
@@ -171,6 +173,46 @@ func TestRegExpRoute(t *testing.T) {
 	}
 }
 
-func TestNestedRoutes(t *testing.T) {
+func TestRouterRootPrefix(t *testing.T) {
+	t.Parallel()
+	testcases := []*routeTestCase{
+		{
+			matchType:  MatchTypePrefix,
+			route:      "service.",
+			rootPrefix: "myrootpath.",
+			tcase: &testCase{
+				path:   "myrootpath.service.profiles",
+				err:    nil,
+				result: "User Profile",
+			},
+		},
+		{
+			matchType:  MatchTypePrefix,
+			route:      "service.",
+			rootPrefix: "myrootpath.",
+			tcase: &testCase{
+				path:   "myroot.service.profiles",
+				err:    ErrRouteNotFound,
+				result: nil,
+			},
+		},
+		{
+			matchType:  MatchTypePrefix,
+			route:      "service.",
+			rootPrefix: "myrootpath.",
+			tcase: &testCase{
+				path:   "myrootpath.service",
+				err:    ErrRouteNotFound,
+				result: nil,
+			},
+		},
+	}
 
+	for _, c := range testcases {
+		c.test(t)
+	}
+}
+
+func TestNestedRoutes(t *testing.T) {
+	t.Parallel()
 }

@@ -9,8 +9,11 @@ import (
 )
 
 const (
-	//PathKey Context value key for provided path
-	PathKey = "servicerouter.Path:Key"
+	//RouteKey Context value key for provided path
+	RouteKey = "sr.Route:Key"
+
+	//RouteName Context value key for provided path
+	RouteName = "sr.Route:Name"
 )
 
 type routeMatcher interface {
@@ -36,8 +39,9 @@ type RouteHandler interface {
 
 // Router : Service Router
 type Router struct {
-	rw     sync.RWMutex
-	routes []*Route
+	rw       sync.RWMutex
+	rootPath string
+	routes   []*Route
 }
 
 // RouteHandlerFunc simplified Handler interface
@@ -52,8 +56,14 @@ func (f RouteHandlerFunc) Handle(ctx context.Context, req interface{}) (r interf
 // NewRouter Create new router
 func NewRouter() *Router {
 	return &Router{
-		routes: make([]*Route, 0, 1),
+		rootPath: "",
+		routes:   make([]*Route, 0, 1),
 	}
+}
+
+// SetRootPrefix set base route of the all path matched
+func (r *Router) SetRootPrefix(rootPrefix string) {
+	r.rootPath = rootPrefix
 }
 
 // ExecPath route the specified path
@@ -66,16 +76,21 @@ func (r *Router) Exec(ctx context.Context, path string, req interface{}) (interf
 	r.rw.RLock()
 	defer r.rw.RUnlock()
 
-	for _, route := range r.routes {
-		matched, isrouted := route.matchRoute(path)
-		if isrouted {
+	if strings.HasPrefix(path, r.rootPath) {
+		strippedPath := strings.TrimPrefix(path, r.rootPath)
+		for _, route := range r.routes {
+			matched, isrouted := route.matchRoute(strippedPath)
+			if isrouted {
+				if ctx == nil {
+					ctx = context.Background()
+				}
 
-			if ctx != nil {
-				ctx = context.WithValue(ctx, PathKey, path)
+				ctx = context.WithValue(ctx, RouteName, matched.Name())
+				ctx = context.WithValue(ctx, RouteKey, strippedPath)
+
+				rz, err := matched.h.Handle(ctx, req)
+				return rz, err
 			}
-
-			rz, err := matched.h.Handle(ctx, req)
-			return rz, err
 		}
 	}
 
@@ -108,7 +123,8 @@ func (r *Router) newRoute() *Route {
 	defer r.rw.Unlock()
 
 	nroute := &Route{
-		sub: make([]*Route, 0),
+		name: "Unknown Route",
+		sub:  make([]*Route, 0),
 	}
 
 	r.routes = append(r.routes, nroute)
@@ -172,7 +188,8 @@ func (r *Route) subRoute() *Route {
 	defer r.mu.Unlock()
 
 	s := &Route{
-		sub: make([]*Route, 0),
+		name: "Unknown SubRoute",
+		sub:  make([]*Route, 0),
 	}
 
 	r.sub = append(r.sub, s)
