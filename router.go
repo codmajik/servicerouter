@@ -62,8 +62,9 @@ func NewRouter() *Router {
 }
 
 // SetRootPrefix set base route of the all path matched
-func (r *Router) SetRootPrefix(rootPrefix string) {
+func (r *Router) SetRootPrefix(rootPrefix string) *Router {
 	r.rootPath = rootPrefix
+	return r
 }
 
 // ExecPath route the specified path
