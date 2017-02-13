@@ -43,8 +43,7 @@ func (r *routeTestCase) hFunc(ctx context.Context, req interface{}) (interface{}
 }
 
 func (r *routeTestCase) test(t *testing.T) {
-	router := NewRouter()
-	router.SetRootPrefix(r.rootPrefix)
+	router := NewRouter(RootPrefix(r.rootPrefix))
 
 	switch r.matchType {
 	case MatchTypeSimple:

@@ -23,6 +23,8 @@ type routeMatcher interface {
 // ErrRouteNotFound route was not found
 var ErrRouteNotFound = errors.New("Route Not Found")
 
+type OptFn func(*Router)
+
 // Route holds a match
 type Route struct {
 	mu      sync.Mutex
@@ -39,9 +41,10 @@ type RouteHandler interface {
 
 // Router : Service Router
 type Router struct {
-	rw       sync.RWMutex
-	rootPath string
-	routes   []*Route
+	rw        sync.RWMutex
+	rootPath  string
+	routes    []*Route
+	cbRouteFn func(string, *Route)
 }
 
 // RouteHandlerFunc simplified Handler interface
@@ -53,18 +56,35 @@ func (f RouteHandlerFunc) Handle(ctx context.Context, req interface{}) (r interf
 	return
 }
 
-// NewRouter Create new router
-func NewRouter() *Router {
-	return &Router{
-		rootPath: "",
-		routes:   make([]*Route, 0, 1),
+func RootPrefix(rootPrefix string) OptFn {
+	return func(r *Router) {
+		r.rootPath = rootPrefix
 	}
 }
 
-// SetRootPrefix set base route of the all path matched
-func (r *Router) SetRootPrefix(rootPrefix string) *Router {
-	r.rootPath = rootPrefix
+func RouteCallback(cb func(string, *Route)) OptFn {
+	return func(r *Router) {
+		r.cbRouteFn = cb
+	}
+}
+
+// NewRouter Create new router
+func NewRouter(opts ...OptFn) *Router {
+	r := &Router{
+		rootPath: "",
+		routes:   make([]*Route, 0, 1),
+	}
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
 	return r
+}
+
+// RootPrefix get root prefix configured for this router
+func (r *Router) RootPrefix() string {
+	return r.rootPath
 }
 
 // ExecPath route the specified path
@@ -89,6 +109,9 @@ func (r *Router) Exec(ctx context.Context, path string, req interface{}) (interf
 				ctx = context.WithValue(ctx, RouteName, matched.Name())
 				ctx = context.WithValue(ctx, RouteKey, strippedPath)
 
+				if r.cbRouteFn != nil {
+					r.cbRouteFn(path, matched)
+				}
 				rz, err := matched.h.Handle(ctx, req)
 				return rz, err
 			}
