@@ -82,7 +82,7 @@ func main() {
 
 		//users.list //
 	subroute.AddRoute(
-		sr.Name("List Users by Group Association")
+		sr.Name("List Users by Group Association"),
 		sr.PrefixRoute("list.groups/"),
 		sr.RouteHandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
 			return "LIST_OF_USERS_BY_GROUP", nil
