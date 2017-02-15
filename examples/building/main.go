@@ -15,7 +15,7 @@ func handleAnyOtherRequest(ctx context.Context, req interface{}) (interface{}, e
 	if ok {
 		qvals = r.URL.RawQuery
 	}
-	return fmt.Sprintf("you want '%s'? => with params %s", ctx.Value(sr.PathKey), qvals), nil
+	return fmt.Sprintf("you want '%s'? => with params %s", ctx.Value(sr.RouteKey), qvals), nil
 }
 
 func handleTwoStory(ctx context.Context, req interface{}) (interface{}, error) {
@@ -33,12 +33,18 @@ func handleNoBuilding(ctx context.Context, req interface{}) (interface{}, error)
 func main() {
 	router := sr.NewRouter()
 
-	router.SimpleRoute("building").HandlerFunc(handleNoBuilding)
-	router.SimpleRoute("building.onestory").HandlerFunc(handleOneStory)
+	router.AddRoute(sr.SimpleRoute("building"), sr.RouteHandlerFunc(handleNoBuilding))
+	router.AddRoute(sr.SimpleRoute("building.onestory"), sr.RouteHandlerFunc(handleOneStory))
 
-	route := router.PrefixRoute("building.")
-	route.PrefixSubRoute("onestory.").HandlerFunc(handleAnyOtherRequest)
-	route.SimpleSubRoute("twostory").HandlerFunc(handleTwoStory)
+	route := router.AddRoute(sr.PrefixRoute("building."))
+	route.AddRoute(
+		sr.PrefixRoute("onestory."),
+		sr.RouteHandlerFunc(handleAnyOtherRequest),
+	)
+	route.AddRoute(
+		sr.SimpleRoute("twostory"),
+		sr.RouteHandlerFunc(handleTwoStory),
+	)
 
 	http.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
 

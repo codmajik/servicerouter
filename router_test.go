@@ -47,9 +47,9 @@ func (r *routeTestCase) test(t *testing.T) {
 
 	switch r.matchType {
 	case MatchTypeSimple:
-		router.SimpleRoute(r.route).HandlerFunc(r.hFunc)
+		router.AddRoute(SimpleRoute(r.route), RouteHandlerFunc(r.hFunc))
 	case MatchTypePrefix:
-		router.PrefixRoute(r.route).HandlerFunc(r.hFunc)
+		router.AddRoute(PrefixRoute(r.route), RouteHandlerFunc(r.hFunc))
 	case MatchTypeRegex:
 		re, err := regexp.Compile(r.route)
 		if err != nil {
@@ -58,7 +58,7 @@ func (r *routeTestCase) test(t *testing.T) {
 			return
 		}
 
-		router.RegExpRoute(re).HandlerFunc(r.hFunc)
+		router.AddRoute(RegExpRoute(re), RouteHandlerFunc(r.hFunc))
 	default:
 		t.Fatal("invalid test case --- unsupported match type ", r.matchType)
 		t.FailNow()

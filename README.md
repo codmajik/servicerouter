@@ -55,42 +55,54 @@ func main() {
 	// NOTE: The routing scheme used here is arbitrary
 	router := sr.NewRouter()
 
-	router.SimpleRoute("home").
-		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+	router.AddRoute( 
+		sr.SimpleRoute("home"),
+		sr.RouteHandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
 			return "HOME_CONTENT", nil
-		})
+		}),
+	)
 
 	// use prefix to do subrouting
-	subroute := router.PrefixRoute("users.").
-		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+	subroute := router.AddRoute(
+		sr.PrefixRoute("users."),
+		sr.RouteHandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
 			return "USERS_INVALID_OPERATION", nil
-		})
+		}),
+	)
 
 	// the following routes are sub of users, so  users. would have to match first
 
 	// users.list --> fetch all users
-	subroute.SimpleSubRoute("list").
-		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+	subroute.AddRoute(
+		sr.SimpleRoute("list"),
+		sr.RouteHandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
 			return "LIST_OF_USERS", nil
 		})
+	)
 
 		//users.list //
-	subroute.PrefixSubRoute("list.groups/").
-		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+	subroute.AddRoute(
+		sr.Name("List Users by Group Association")
+		sr.PrefixRoute("list.groups/"),
+		sr.RouteHandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
 			return "LIST_OF_USERS_BY_GROUP", nil
-		}).
-		SimpleSubRoute("admin"). // you can even subroute on a subroute - META ZEN
-		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+		}),
+	).AddRoute(
+		sr.SimpleRoute("admin"), // you can even subroute on a subroute - META ZEN
+		sr.RouteHandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
 			return "LIST_OF_ADMIN_USERS", nil
-		})
+		}),
+	)
 
 	// users.save
-	subroute.SimpleSubRoute("save").
-		HandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
+	subroute.AddRoute( 
+		sr.SimpleRoute("save"),
+		sr.RouteHandlerFunc(func(ctx context.Context, req interface{}) (interface{}, error) {
 			params := req.(map[string]string)
 			fmt.Println("save to db", params)
 			return "HOUSTON_ALL_IS_WELL", nil
-		})
+		}),
+	)
 
 	http.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
 
